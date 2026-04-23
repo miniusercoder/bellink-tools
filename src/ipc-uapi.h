@@ -15,7 +15,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include "containers.h"
-#include "curve25519.h"
 #include "encoding.h"
 #include "ctype.h"
 
@@ -24,6 +23,10 @@
 #else
 #include "ipc-uapi-unix.h"
 #endif
+
+#include "bee2/crypto/bign128.h"
+#include "bee2/core/err.h"
+#include "bee2/core/mem.h"
 
 static int userspace_set_device(struct wgdevice *dev)
 {
@@ -175,8 +178,21 @@ static int userspace_get_device(struct wgdevice **out, const char *iface)
 		if (!peer && !strcmp(key, "private_key")) {
 			if (!key_from_hex(dev->private_key, value))
 				break;
-			curve25519_generate_public(dev->public_key, dev->private_key);
-			dev->flags |= WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_PUBLIC_KEY;
+
+			err_t code = bign128PubkeyCalc(dev->public_key, dev->private_key);
+
+			if (code == ERR_OK) {
+				dev->flags |= WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_PUBLIC_KEY;
+			} else if (code == ERR_BAD_PRIVKEY) {
+				ret = -EINVAL;
+				goto err;
+			} else if (code == ERR_BAD_PARAMS) {
+				ret = -EFAULT;
+				goto err;
+			} else {
+				ret = -EFAULT;
+				goto err;
+			}
 		} else if (!peer && !strcmp(key, "listen_port")) {
 			dev->listen_port = NUM(0xffffU);
 			dev->flags |= WGDEVICE_HAS_LISTEN_PORT;
