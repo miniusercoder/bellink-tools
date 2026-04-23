@@ -7,7 +7,6 @@
 #undef stderr
 #define stderr stdin
 #define RUNSTATEDIR "/var/empty"
-#include "../curve25519.c"
 #define parse_allowedips parse_allowedips_ipc
 #include "../ipc.c"
 #undef parse_allowedips
