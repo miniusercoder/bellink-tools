@@ -21,6 +21,7 @@
  */
 
 #define WG_KEY_LEN 32
+#define WG_PUBKEY_LEN 64
 
 #define SIOCSWG _IOWR('i', 210, struct wg_data_io)
 #define SIOCGWG _IOWR('i', 211, struct wg_data_io)

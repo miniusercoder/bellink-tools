@@ -24,7 +24,8 @@
 #endif
 #endif
 
-#include "curve25519.h"
+#include "bee2/core/mem.h"
+#include "bee2/crypto/bign128.h"
 #include "encoding.h"
 #include "subcommands.h"
 
@@ -72,6 +73,12 @@ static inline bool __attribute__((__warn_unused_result__)) get_random_bytes(uint
 }
 #endif
 
+static void my_bee2_rng(void *buf, size_t count, void *state)
+{
+	(void)state;
+	get_random_bytes((uint8_t *)buf, count);
+}
+
 int genkey_main(int argc, const char *argv[])
 {
 	uint8_t key[WG_KEY_LEN];
@@ -86,12 +93,13 @@ int genkey_main(int argc, const char *argv[])
 	if (!fstat(STDOUT_FILENO, &stat) && S_ISREG(stat.st_mode) && stat.st_mode & S_IRWXO)
 		fputs("Warning: writing to world accessible file.\nConsider setting the umask to 077 and trying again.\n", stderr);
 
-	if (!get_random_bytes(key, WG_KEY_LEN)) {
-		perror("getrandom");
+	octet temp_pubkey[WG_PUBKEY_LEN];
+	err_t code = bign128KeypairGen(key, temp_pubkey, my_bee2_rng, 0);
+	memSetZero(temp_pubkey, sizeof(temp_pubkey));
+	if (code != ERR_OK) {
+		fprintf(stderr, "%s: Key generation failed (code %d)\n", PROG_NAME, code);
 		return 1;
 	}
-	if (!strcmp(argv[0], "genkey"))
-		curve25519_clamp_secret(key);
 
 	key_to_base64(base64, key);
 	puts(base64);

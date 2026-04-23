@@ -32,6 +32,19 @@ void key_to_base64(char base64[static WG_KEY_LEN_BASE64], const uint8_t key[stat
 	base64[WG_KEY_LEN_BASE64 - 1] = '\0';
 }
 
+void pubkey_to_base64(char base64[static WG_PUBKEY_LEN_BASE64], const uint8_t pubkey[static WG_PUBKEY_LEN])
+{
+	unsigned int i;
+
+	for (i = 0; i < WG_PUBKEY_LEN / 3; ++i)
+		encode_base64(&base64[i * 4], &pubkey[i * 3]);
+	/* WG_PUBKEY_LEN=64 leaves 1 remainder byte (64 = 21*3 + 1), needs "==" padding */
+	encode_base64(&base64[i * 4], (const uint8_t[]){ pubkey[i * 3 + 0], 0, 0 });
+	base64[WG_PUBKEY_LEN_BASE64 - 3] = '=';
+	base64[WG_PUBKEY_LEN_BASE64 - 2] = '=';
+	base64[WG_PUBKEY_LEN_BASE64 - 1] = '\0';
+}
+
 static inline int decode_base64(const char src[static 4])
 {
 	int val = 0;
@@ -45,6 +58,32 @@ static inline int decode_base64(const char src[static 4])
 			    + ((((('/' - 1) - src[i]) & (src[i] - ('/' + 1))) >> 8) & 64)
 			) << (18 - 6 * i);
 	return val;
+}
+
+bool pubkey_from_base64(uint8_t pubkey[static WG_PUBKEY_LEN], const char *base64)
+{
+	unsigned int i;
+	volatile uint8_t ret = 0;
+	int val;
+
+	/* WG_PUBKEY_LEN=64 encodes with "==" padding; check both padding chars */
+	if (strlen(base64) != WG_PUBKEY_LEN_BASE64 - 1 ||
+	    base64[WG_PUBKEY_LEN_BASE64 - 3] != '=' || base64[WG_PUBKEY_LEN_BASE64 - 2] != '=')
+		return false;
+
+	for (i = 0; i < WG_PUBKEY_LEN / 3; ++i) {
+		val = decode_base64(&base64[i * 4]);
+		ret |= (uint32_t)val >> 31;
+		pubkey[i * 3 + 0] = (val >> 16) & 0xff;
+		pubkey[i * 3 + 1] = (val >> 8) & 0xff;
+		pubkey[i * 3 + 2] = val & 0xff;
+	}
+	/* 1 remaining byte: only 2 significant base64 chars, 16 bits must be zero padding */
+	val = decode_base64((const char[]){ base64[i * 4 + 0], base64[i * 4 + 1], 'A', 'A' });
+	ret |= ((uint32_t)val >> 31) | (val & 0xffff);
+	pubkey[i * 3 + 0] = (val >> 16) & 0xff;
+
+	return 1 & ((ret - 1) >> 8);
 }
 
 bool key_from_base64(uint8_t key[static WG_KEY_LEN], const char *base64)
@@ -71,6 +110,17 @@ bool key_from_base64(uint8_t key[static WG_KEY_LEN], const char *base64)
 	return 1 & ((ret - 1) >> 8);
 }
 
+void pubkey_to_hex(char hex[static WG_PUBKEY_LEN_HEX], const uint8_t pubkey[static WG_PUBKEY_LEN])
+{
+	unsigned int i;
+
+	for (i = 0; i < WG_PUBKEY_LEN; ++i) {
+		hex[i * 2] = 87U + (pubkey[i] >> 4) + ((((pubkey[i] >> 4) - 10U) >> 8) & ~38U);
+		hex[i * 2 + 1] = 87U + (pubkey[i] & 0xf) + ((((pubkey[i] & 0xf) - 10U) >> 8) & ~38U);
+	}
+	hex[i * 2] = '\0';
+}
+
 void key_to_hex(char hex[static WG_KEY_LEN_HEX], const uint8_t key[static WG_KEY_LEN])
 {
 	unsigned int i;
@@ -80,6 +130,37 @@ void key_to_hex(char hex[static WG_KEY_LEN_HEX], const uint8_t key[static WG_KEY
 		hex[i * 2 + 1] = 87U + (key[i] & 0xf) + ((((key[i] & 0xf) - 10U) >> 8) & ~38U);
 	}
 	hex[i * 2] = '\0';
+}
+
+bool pubkey_from_hex(uint8_t pubkey[static WG_PUBKEY_LEN], const char *hex)
+{
+	uint8_t c, c_acc, c_alpha0, c_alpha, c_num0, c_num, c_val;
+	volatile uint8_t ret = 0;
+
+	if (strlen(hex) != WG_PUBKEY_LEN_HEX - 1)
+		return false;
+
+	for (unsigned int i = 0; i < WG_PUBKEY_LEN_HEX - 1; i += 2) {
+		c = (uint8_t)hex[i];
+		c_num = c ^ 48U;
+		c_num0 = (c_num - 10U) >> 8;
+		c_alpha = (c & ~32U) - 55U;
+		c_alpha0 = ((c_alpha - 10U) ^ (c_alpha - 16U)) >> 8;
+		ret |= ((c_num0 | c_alpha0) - 1) >> 8;
+		c_val = (c_num0 & c_num) | (c_alpha0 & c_alpha);
+		c_acc = c_val * 16U;
+
+		c = (uint8_t)hex[i + 1];
+		c_num = c ^ 48U;
+		c_num0 = (c_num - 10U) >> 8;
+		c_alpha = (c & ~32U) - 55U;
+		c_alpha0 = ((c_alpha - 10U) ^ (c_alpha - 16U)) >> 8;
+		ret |= ((c_num0 | c_alpha0) - 1) >> 8;
+		c_val = (c_num0 & c_num) | (c_alpha0 & c_alpha);
+		pubkey[i / 2] = c_acc | c_val;
+	}
+
+	return 1 & ((ret - 1) >> 8);
 }
 
 bool key_from_hex(uint8_t key[static WG_KEY_LEN], const char *hex)

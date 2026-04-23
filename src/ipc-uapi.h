@@ -27,7 +27,7 @@
 
 static int userspace_set_device(struct wgdevice *dev)
 {
-	char hex[WG_KEY_LEN_HEX], ip[INET6_ADDRSTRLEN], host[4096 + 1], service[512 + 1];
+	char hex[WG_PUBKEY_LEN_HEX], ip[INET6_ADDRSTRLEN], host[4096 + 1], service[512 + 1];
 	struct wgpeer *peer;
 	struct wgallowedip *allowedip;
 	FILE *f;
@@ -53,7 +53,7 @@ static int userspace_set_device(struct wgdevice *dev)
 		fprintf(f, "replace_peers=true\n");
 
 	for_each_wgpeer(dev, peer) {
-		key_to_hex(hex, peer->public_key);
+		pubkey_to_hex(hex, peer->public_key);
 		fprintf(f, "public_key=%s\n", hex);
 		if (peer->flags & WGPEER_REMOVE_ME) {
 			fprintf(f, "remove=true\n");
@@ -196,7 +196,7 @@ static int userspace_get_device(struct wgdevice **out, const char *iface)
 			else
 				dev->first_peer = new_peer;
 			peer = new_peer;
-			if (!key_from_hex(peer->public_key, value))
+			if (!pubkey_from_hex(peer->public_key, value))
 				break;
 			peer->flags |= WGPEER_HAS_PUBLIC_KEY;
 		} else if (peer && !strcmp(key, "preshared_key")) {

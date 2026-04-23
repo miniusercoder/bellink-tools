@@ -114,6 +114,16 @@ static inline bool parse_key(uint8_t key[static WG_KEY_LEN], const char *value)
 	return true;
 }
 
+static inline bool parse_pubkey(uint8_t pubkey[static WG_PUBKEY_LEN], const char *value)
+{
+	if (!pubkey_from_base64(pubkey, value)) {
+		fprintf(stderr, "Public key is not the correct length or format: `%s'\n", value);
+		memset(pubkey, 0, WG_PUBKEY_LEN);
+		return false;
+	}
+	return true;
+}
+
 static bool parse_keyfile(uint8_t key[static WG_KEY_LEN], const char *path)
 {
 	FILE *f;
@@ -479,7 +489,7 @@ static bool process_line(struct config_ctx *ctx, const char *line)
 		if (key_match("Endpoint"))
 			ret = parse_endpoint(&ctx->last_peer->endpoint.addr, value);
 		else if (key_match("PublicKey")) {
-			ret = parse_key(ctx->last_peer->public_key, value);
+			ret = parse_pubkey(ctx->last_peer->public_key, value);
 			if (ret)
 				ctx->last_peer->flags |= WGPEER_HAS_PUBLIC_KEY;
 		} else if (key_match("AllowedIPs"))
@@ -625,7 +635,7 @@ struct wgdevice *config_read_cmd(const char *argv[], int argc)
 			else
 				device->first_peer = new_peer;
 			peer = new_peer;
-			if (!parse_key(peer->public_key, argv[1]))
+			if (!parse_pubkey(peer->public_key, argv[1]))
 				goto error;
 			peer->flags |= WGPEER_HAS_PUBLIC_KEY;
 			argv += 2;

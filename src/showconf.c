@@ -20,7 +20,7 @@
 
 int showconf_main(int argc, const char *argv[])
 {
-	char base64[WG_KEY_LEN_BASE64];
+	char base64[WG_PUBKEY_LEN_BASE64];
 	char ip[INET6_ADDRSTRLEN];
 	struct wgdevice *device = NULL;
 	struct wgpeer *peer;
@@ -48,7 +48,7 @@ int showconf_main(int argc, const char *argv[])
 	}
 	printf("\n");
 	for_each_wgpeer(device, peer) {
-		key_to_base64(base64, peer->public_key);
+		pubkey_to_base64(base64, peer->public_key);
 		printf("[Peer]\nPublicKey = %s\n", base64);
 		if (peer->flags & WGPEER_HAS_PRESHARED_KEY) {
 			key_to_base64(base64, peer->preshared_key);

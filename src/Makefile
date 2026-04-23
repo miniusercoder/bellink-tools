@@ -41,6 +41,7 @@ CFLAGS ?= -O3
 ifneq ($(wildcard uapi/$(PLATFORM)/.),)
 CFLAGS += -isystem uapi/$(PLATFORM)
 endif
+CFLAGS += -I../bee2/include
 CFLAGS += -std=gnu99 -D_GNU_SOURCE
 CFLAGS += -Wall -Wextra
 CFLAGS += -MMD -MP
@@ -73,6 +74,11 @@ wincompat/resources.o: wincompat/resources.rc wincompat/manifest.xml
 	$(WINDRES) -DVERSION_STR=$(VERSION) -O coff -c 65001 -i $< -o $@
 endif
 
+LDLIBS += -lbee2_static
+LDFLAGS += -L../bee2/build/src 
+
+all: wg
+
 ifneq ($(V),1)
 BUILT_IN_LINK.o := $(LINK.o)
 LINK.o = @echo "  LD      $@";
@@ -85,9 +91,21 @@ RM := @a() { echo "  CLEAN   $$@"; $(BUILT_IN_RM) "$$@"; }; a
 WINDRES := @a() { echo "  WINDRES $${@: -1}"; $(WINDRES) "$$@"; }; a
 endif
 
-wg: $(sort $(patsubst %.c,%.o,$(wildcard *.c)))
+BEE2_LIB := ../bee2/build/src/libbee2_static.a
+
+$(BEE2_LIB):
+	@echo "Building bee2 static library..."
+	@mkdir -p ../bee2/build
+	@cd ../bee2/build && cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_PIC=ON -DBUILD_CMD=OFF -DBUILD_TESTS=OFF -DBUILD_DOC=OFF ..
+	@$(MAKE) -C ../bee2/build -j4
+
+# ДОБАВЛЕНО ЯВНОЕ ПРАВИЛО ЛИНКОВКИ:
+wg: $(sort $(patsubst %.c,%.o,$(wildcard *.c))) $(BEE2_LIB)
+	@echo "  LD      $@"
+	$(CC) $(CFLAGS) $(LDFLAGS) $(filter %.o,$^) $(LDLIBS) -o $@
 
 clean:
+	$(RM) -rf ../bee2/build
 	$(RM) wg *.o *.d $(wildcard wincompat/*.o wincompat/*.lib wincompat/*.dll)
 
 install: wg
@@ -107,8 +125,6 @@ install: wg
 check: clean
 	scan-build --html-title=wireguard-tools -maxloop 100 --view --keep-going $(MAKE) wg
 
-all: wg
-.DEFAULT_GOAL: all
-.PHONY: clean install check
+.PHONY: clean install check all
 
 -include *.d

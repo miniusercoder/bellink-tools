@@ -21,6 +21,9 @@
 #ifndef WG_KEY_LEN
 #define WG_KEY_LEN 32
 #endif
+#ifndef WG_PUBKEY_LEN
+#define WG_PUBKEY_LEN 64
+#endif
 
 /* Cross platform __kernel_timespec */
 struct timespec64 {
@@ -54,7 +57,7 @@ enum {
 struct wgpeer {
 	uint32_t flags;
 
-	uint8_t public_key[WG_KEY_LEN];
+	uint8_t public_key[WG_PUBKEY_LEN];
 	uint8_t preshared_key[WG_KEY_LEN];
 
 	union {
@@ -85,7 +88,7 @@ struct wgdevice {
 
 	uint32_t flags;
 
-	uint8_t public_key[WG_KEY_LEN];
+	uint8_t public_key[WG_PUBKEY_LEN];
 	uint8_t private_key[WG_KEY_LEN];
 
 	uint32_t fwmark;

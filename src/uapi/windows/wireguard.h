@@ -13,6 +13,7 @@
 #include <in6addr.h>
 
 #define WG_KEY_LEN 32
+#define WG_PUBKEY_LEN 64
 
 typedef enum
 {
@@ -47,7 +48,7 @@ typedef struct _WG_IOCTL_PEER
 {
 	WG_IOCTL_PEER_FLAG Flags;
 	ULONG ProtocolVersion; /* 0 = latest protocol, 1 = this protocol. */
-	UCHAR PublicKey[WG_KEY_LEN];
+	UCHAR PublicKey[WG_PUBKEY_LEN];
 	UCHAR PresharedKey[WG_KEY_LEN];
 	USHORT PersistentKeepalive;
 	SOCKADDR_INET Endpoint;

@@ -139,6 +139,7 @@
 #define WG_GENL_VERSION 1
 
 #define WG_KEY_LEN 32
+#define WG_PUBKEY_LEN 64
 
 enum wg_cmd {
 	WG_CMD_GET_DEVICE,
